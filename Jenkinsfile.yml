@@ -1,0 +1,56 @@
+pipeline {
+    agent none
+
+    tools {
+        // Install the Maven version configured as "M3" and add it to the path.
+        maven "mymaven"
+        jdk    "myjava"
+    }
+
+    stages {
+        stage('comipile') {
+            agent any
+            steps {
+                git 'https://github.com/devops-trainer/addressbook.git'
+                sh "mvn compile"
+            }
+            
+        }
+        stage('codereview') {
+            agent any
+            steps {
+                sh "mvn pmd:pmd"
+            }
+        }
+        stage('unittest') {
+            agent any
+            steps {
+                sh "mvn test"
+            }
+            post{
+                always{
+                    junit '**/target/surefire-reports/*.xml'
+                }
+            }
+            
+        }
+        stage('metriccheck') {
+            agent any
+            steps {
+                sh "mvn cobertura:cobertura -Dcobertura.report.format=xml"
+            }
+            post{
+                always{
+                    cobertura coberturaReportFile: 'target/site/cobertura/coverage.xml'
+                }
+            }
+        }
+        stage('package') {
+            agent {label 'linux_slave'}
+            steps {
+                git 'https://github.com/devops-trainer/addressbook.git'
+                sh "mvn package"
+            }
+        }
+    }
+}
